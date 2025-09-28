@@ -2,7 +2,6 @@ class Model {
     constructor(gl) {
         this.gl = gl;
         this.positionBuffer = gl.createBuffer();
-
         this.uLines = [];
         this.vLines = [];
         this.uColor = [0.2, 0.5, 1.0, 1.0];

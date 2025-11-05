@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Astroidal Torus</title>
+    <title>Astroidal Torus - Filled with Lighting</title>
     <style>
         body {
             margin: 0;
@@ -31,7 +31,7 @@
             flex-direction: column;
             align-items: center;
             width: 100%;
-            max-width: 900px;
+            max-width: 1000px;
         }
         .canvas-container {
             position: relative;
@@ -70,18 +70,6 @@
         input[type="range"] {
             width: 150px;
         }
-        .info {
-            background: rgba(0, 0, 0, 0.3);
-            padding: 15px;
-            border-radius: 10px;
-            width: 100%;
-            margin-bottom: 20px;
-        }
-        .info h3 {
-            margin-top: 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.3);
-            padding-bottom: 5px;
-        }
         .wireframe-toggle {
             display: flex;
             gap: 10px;
@@ -103,44 +91,74 @@
             font-size: 0.9em;
             margin-top: 5px;
         }
+        .shading-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Astroidal Torus Wireframe</h1>
+        <h1>Astroidal Torus</h1>
+
         <div class="canvas-container">
             <canvas id="glcanvas"></canvas>
         </div>
         <div class="controls">
             <div class="control-group">
                 <label for="rotationX">Rotation X</label>
-                <input type="range" id="rotationX" min="0" max="360" value="180">
-                <div class="value-display" id="rotationXValue">180°</div>
+                <input type="range" id="rotationX" min="0" max="360" value="30">
+                <div class="value-display" id="rotationXValue">30°</div>
             </div>
             <div class="control-group">
                 <label for="rotationY">Rotation Y</label>
-                <input type="range" id="rotationY" min="0" max="360" value="180">
-                <div class="value-display" id="rotationYValue">180°</div>
+                <input type="range" id="rotationY" min="0" max="360" value="45">
+                <div class="value-display" id="rotationYValue">45°</div>
             </div>
             <div class="control-group">
-                <label for="uCount">U Polylines</label>
-                <input type="range" id="uCount" min="8" max="40" value="20">
-                <div class="value-display" id="uCountValue">20</div>
+                <label for="uSegments">U Segments</label>
+                <input type="range" id="uSegments" min="10" max="100" value="30">
+                <div class="value-display" id="uSegmentsValue">30</div>
             </div>
             <div class="control-group">
-                <label for="vCount">V Polylines</label>
-                <input type="range" id="vCount" min="8" max="40" value="20">
-                <div class="value-display" id="vCountValue">20</div>
+                <label for="vSegments">V Segments</label>
+                <input type="range" id="vSegments" min="10" max="100" value="30">
+                <div class="value-display" id="vSegmentsValue">30</div>
             </div>
             <div class="control-group">
                 <label for="scale">Scale</label>
-                <input type="range" id="scale" min="1" max="10" value="1" step="0.1">
-                <div class="value-display" id="scaleValue">1.0</div>
+                <input type="range" id="scale" min="1" max="10" value="5" step="0.1">
+                <div class="value-display" id="scaleValue">5.0</div>
             </div>
         </div>
+
+        <div class="shading-controls">
+            <div class="control-group">
+                <label for="ambient">Ambient</label>
+                <input type="range" id="ambient" min="0" max="1" value="0.2" step="0.01">
+                <div class="value-display" id="ambientValue">0.2</div>
+            </div>
+            <div class="control-group">
+                <label for="diffuse">Diffuse</label>
+                <input type="range" id="diffuse" min="0" max="1" value="0.7" step="0.01">
+                <div class="value-display" id="diffuseValue">0.7</div>
+            </div>
+            <div class="control-group">
+                <label for="specular">Specular</label>
+                <input type="range" id="specular" min="0" max="1" value="0.5" step="0.01">
+                <div class="value-display" id="specularValue">0.5</div>
+            </div>
+            <div class="control-group">
+                <label for="shininess">Shininess</label>
+                <input type="range" id="shininess" min="1" max="100" value="32">
+                <div class="value-display" id="shininessValue">32</div>
+            </div>
+        </div>
+
         <div class="wireframe-toggle">
-            <button id="toggleU">Toggle U Polylines</button>
-            <button id="toggleV">Toggle V Polylines</button>
+            <button id="toggleWireframe">Toggle Wireframe</button>
+            <button id="toggleLightAnimation">Toggle Light Animation</button>
             <button id="resetView">Reset View</button>
         </div>
     </div>

@@ -14,7 +14,6 @@ class Shader {
             this.gl.deleteShader(shader);
             return null;
         }
-
         return shader;
     }
 
@@ -30,7 +29,6 @@ class Shader {
             console.error('Program linking error:', this.gl.getProgramInfoLog(program));
             return null;
         }
-
         return program;
     }
 
@@ -38,11 +36,18 @@ class Shader {
         this.uniforms = {
             projectionMatrix: this.gl.getUniformLocation(this.program, 'uProjectionMatrix'),
             modelViewMatrix: this.gl.getUniformLocation(this.program, 'uModelViewMatrix'),
-            color: this.gl.getUniformLocation(this.program, 'uColor')
+            normalMatrix: this.gl.getUniformLocation(this.program, 'uNormalMatrix'),
+            lightPosition: this.gl.getUniformLocation(this.program, 'uLightPosition'),
+            ambientColor: this.gl.getUniformLocation(this.program, 'uAmbientColor'),
+            diffuseColor: this.gl.getUniformLocation(this.program, 'uDiffuseColor'),
+            specularColor: this.gl.getUniformLocation(this.program, 'uSpecularColor'),
+            shininess: this.gl.getUniformLocation(this.program, 'uShininess'),
+            useWireframe: this.gl.getUniformLocation(this.program, 'uUseWireframe')
         };
 
         this.attributes = {
-            vertexPosition: this.gl.getAttribLocation(this.program, 'aVertexPosition')
+            vertexPosition: this.gl.getAttribLocation(this.program, 'aVertexPosition'),
+            vertexNormal: this.gl.getAttribLocation(this.program, 'aVertexNormal')
         };
     }
 
@@ -54,7 +59,19 @@ class Shader {
         this.gl.uniformMatrix4fv(location, false, matrix.elements || matrix);
     }
 
+    setUniform3f(location, x, y, z) {
+        this.gl.uniform3f(location, x, y, z);
+    }
+
     setUniform4f(location, r, g, b, a) {
         this.gl.uniform4f(location, r, g, b, a);
+    }
+
+    setUniform1f(location, value) {
+        this.gl.uniform1f(location, value);
+    }
+
+    setUniform1i(location, value) {
+        this.gl.uniform1i(location, value);
     }
 }

@@ -3,9 +3,11 @@ class Model {
         this.gl = gl;
         this.positionBuffer = gl.createBuffer();
         this.normalBuffer = gl.createBuffer();
+        this.textureBuffer = gl.createBuffer();
         this.indexBuffer = gl.createBuffer();
         this.vertices = [];
         this.normals = [];
+        this.textureCoords = [];
         this.indices = [];
         this.uSegments = 30;
         this.vSegments = 30;
@@ -60,6 +62,7 @@ class Model {
     generateSurface() {
         this.vertices = [];
         this.normals = [];
+        this.textureCoords = [];
         this.indices = [];
 
         const uStep = (2 * Math.PI) / this.uSegments;
@@ -76,6 +79,8 @@ class Model {
                 const v = j * vStep;
                 const vertex = this.astroidalTorus(u, v);
                 this.vertices.push(...vertex);
+
+                this.textureCoords.push(j / this.vSegments, i / this.uSegments);
 
                 const derivs = this.calculateDerivatives(u, v);
                 const normal = this.calculateFacetNormal(derivs.du, derivs.dv);
@@ -135,6 +140,9 @@ class Model {
         gl.bindBuffer(gl.ARRAY_BUFFER, this.normalBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.normals), gl.STATIC_DRAW);
 
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.textureBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.textureCoords), gl.STATIC_DRAW);
+
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(this.indices), gl.STATIC_DRAW);
     }
@@ -149,7 +157,7 @@ class Model {
         this.wireframeMode = !this.wireframeMode;
     }
 
-    draw(shaderProgram, projectionMatrix, modelViewMatrix, normalMatrix, lightPosition, lightingParams) {
+    draw(shaderProgram, projectionMatrix, modelViewMatrix, normalMatrix, lightPosition, lightingParams, textures, normalMapping) {
         const gl = this.gl;
 
         shaderProgram.use();
@@ -164,7 +172,27 @@ class Model {
         shaderProgram.setUniform4f(shaderProgram.uniforms.specularColor, lightingParams.specular, lightingParams.specular, lightingParams.specular, 1.0);
         shaderProgram.setUniform1f(shaderProgram.uniforms.shininess, lightingParams.shininess);
         shaderProgram.setUniform1i(shaderProgram.uniforms.useWireframe, this.wireframeMode ? 1 : 0);
+        shaderProgram.setUniform1i(shaderProgram.uniforms.useNormalMapping, normalMapping ? 1 : 0);
 
+        if (textures.diffuse) {
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, textures.diffuse);
+            shaderProgram.setUniform1i(shaderProgram.uniforms.diffuseTexture, 0);
+        }
+
+        if (textures.specular) {
+            gl.activeTexture(gl.TEXTURE1);
+            gl.bindTexture(gl.TEXTURE_2D, textures.specular);
+            shaderProgram.setUniform1i(shaderProgram.uniforms.specularTexture, 1);
+        }
+
+        if (textures.normal) {
+            gl.activeTexture(gl.TEXTURE2);
+            gl.bindTexture(gl.TEXTURE_2D, textures.normal);
+            shaderProgram.setUniform1i(shaderProgram.uniforms.normalTexture, 2);
+        }
+
+        // Set up vertex attributes
         gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
         gl.vertexAttribPointer(shaderProgram.attributes.vertexPosition, 3, gl.FLOAT, false, 0, 0);
         gl.enableVertexAttribArray(shaderProgram.attributes.vertexPosition);
@@ -172,6 +200,10 @@ class Model {
         gl.bindBuffer(gl.ARRAY_BUFFER, this.normalBuffer);
         gl.vertexAttribPointer(shaderProgram.attributes.vertexNormal, 3, gl.FLOAT, false, 0, 0);
         gl.enableVertexAttribArray(shaderProgram.attributes.vertexNormal);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.textureBuffer);
+        gl.vertexAttribPointer(shaderProgram.attributes.textureCoord, 2, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(shaderProgram.attributes.textureCoord);
 
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
 

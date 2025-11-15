@@ -42,12 +42,17 @@ class Shader {
             diffuseColor: this.gl.getUniformLocation(this.program, 'uDiffuseColor'),
             specularColor: this.gl.getUniformLocation(this.program, 'uSpecularColor'),
             shininess: this.gl.getUniformLocation(this.program, 'uShininess'),
-            useWireframe: this.gl.getUniformLocation(this.program, 'uUseWireframe')
+            useWireframe: this.gl.getUniformLocation(this.program, 'uUseWireframe'),
+            useNormalMapping: this.gl.getUniformLocation(this.program, 'uUseNormalMapping'),
+            diffuseTexture: this.gl.getUniformLocation(this.program, 'uDiffuseTexture'),
+            specularTexture: this.gl.getUniformLocation(this.program, 'uSpecularTexture'),
+            normalTexture: this.gl.getUniformLocation(this.program, 'uNormalTexture')
         };
 
         this.attributes = {
             vertexPosition: this.gl.getAttribLocation(this.program, 'aVertexPosition'),
-            vertexNormal: this.gl.getAttribLocation(this.program, 'aVertexNormal')
+            vertexNormal: this.gl.getAttribLocation(this.program, 'aVertexNormal'),
+            textureCoord: this.gl.getAttribLocation(this.program, 'aTextureCoord')
         };
     }
 

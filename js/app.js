@@ -16,12 +16,20 @@ class App {
         this.shininess = 32.0;
         this.lightAnimation = true;
         this.lightAngle = 0;
+        this.normalMapping = true;
 
         this.projectionMatrix = new M4();
         this.modelViewMatrix = new M4();
         this.normalMatrix = new M4();
 
+        this.textures = {
+            diffuse: null,
+            specular: null,
+            normal: null
+        };
+
         this.initShaders();
+        this.loadTextures();
         this.setupEventListeners();
         this.resizeCanvas();
     }
@@ -30,6 +38,7 @@ class App {
         const vertexShaderSource = `
             attribute vec4 aVertexPosition;
             attribute vec3 aVertexNormal;
+            attribute vec2 aTextureCoord;
             
             uniform mat4 uModelViewMatrix;
             uniform mat4 uProjectionMatrix;
@@ -39,6 +48,7 @@ class App {
             varying vec3 vNormal;
             varying vec3 vLightDirection;
             varying vec3 vViewPosition;
+            varying vec2 vTextureCoord;
             
             void main() {
                 vec4 viewPosition = uModelViewMatrix * aVertexPosition;
@@ -52,6 +62,7 @@ class App {
                 vLightDirection = lightViewPosition.xyz - viewPosition.xyz;
                 
                 vViewPosition = viewPosition.xyz;
+                vTextureCoord = aTextureCoord;
             }
         `;
 
@@ -63,10 +74,16 @@ class App {
             uniform vec4 uSpecularColor;
             uniform float uShininess;
             uniform int uUseWireframe;
+            uniform int uUseNormalMapping;
+            
+            uniform sampler2D uDiffuseTexture;
+            uniform sampler2D uSpecularTexture;
+            uniform sampler2D uNormalTexture;
             
             varying vec3 vNormal;
             varying vec3 vLightDirection;
             varying vec3 vViewPosition;
+            varying vec2 vTextureCoord;
             
             void main() {
                 if (uUseWireframe == 1) {
@@ -74,18 +91,31 @@ class App {
                     return;
                 }
                 
-                vec3 normal = normalize(vNormal);
+                vec3 normal;
+                
+                if (uUseNormalMapping == 1) {
+                    // Get normal from normal map and transform from [0,1] to [-1,1]
+                    vec3 normalMap = texture2D(uNormalTexture, vTextureCoord).rgb;
+                    normal = normalize(normalMap * 2.0 - 1.0);
+                } else {
+                    normal = normalize(vNormal);
+                }
+                
                 vec3 lightDir = normalize(vLightDirection);
                 vec3 viewDir = normalize(-vViewPosition);
                 vec3 reflectDir = reflect(-lightDir, normal);
                 
-                vec4 ambient = uAmbientColor;
+                // Get texture samples
+                vec4 diffuseTex = texture2D(uDiffuseTexture, vTextureCoord);
+                vec4 specularTex = texture2D(uSpecularTexture, vTextureCoord);
+                
+                vec4 ambient = uAmbientColor * diffuseTex;
                 
                 float diff = max(dot(normal, lightDir), 0.0);
-                vec4 diffuse = uDiffuseColor * diff;
+                vec4 diffuse = uDiffuseColor * diffuseTex * diff;
                 
                 float spec = pow(max(dot(viewDir, reflectDir), 0.0), uShininess);
-                vec4 specular = uSpecularColor * spec;
+                vec4 specular = uSpecularColor * specularTex * spec;
                 
                 vec4 result = ambient + diffuse + specular;
                 gl_FragColor = vec4(result.rgb, 1.0);
@@ -93,6 +123,93 @@ class App {
         `;
 
         this.shaderProgram = new Shader(this.gl, vertexShaderSource, fragmentShaderSource);
+    }
+
+    loadTextures() {
+        const textureFiles = {
+            diffuse: 'textures/diffuse.jpg',
+            specular: 'textures/specular.jpg',
+            normal: 'textures/normal.jpg'
+        };
+
+        let loadedCount = 0;
+        const totalTextures = Object.keys(textureFiles).length;
+
+        const updateStatus = () => {
+            loadedCount++;
+            const status = document.getElementById('textureStatus');
+            if (loadedCount === totalTextures) {
+                status.textContent = 'All textures loaded successfully!';
+                status.style.color = '#4CAF50';
+            } else {
+                status.textContent = `Loading textures... ${loadedCount}/${totalTextures}`;
+            }
+        };
+
+        Object.keys(textureFiles).forEach(type => {
+            this.loadTexture(textureFiles[type], texture => {
+                this.textures[type] = texture;
+                updateStatus();
+            }, () => {
+                console.warn(`Failed to load ${type} texture, using fallback`);
+                this.createFallbackTexture(type);
+                updateStatus();
+            });
+        });
+    }
+
+    loadTexture(url, onLoad, onError) {
+        const texture = this.gl.createTexture();
+        const image = new Image();
+
+        image.onload = () => {
+            this.gl.bindTexture(this.gl.TEXTURE_2D, texture);
+            this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, image);
+            this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.REPEAT);
+            this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.REPEAT);
+            this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR);
+            this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.LINEAR);
+            onLoad(texture);
+        };
+
+        image.onerror = onError;
+        image.src = url;
+    }
+
+    createFallbackTexture(type) {
+        const texture = this.gl.createTexture();
+        const size = 64;
+        const data = new Uint8Array(size * size * 4);
+
+        for (let i = 0; i < size * size; i++) {
+            const offset = i * 4;
+
+            if (type === 'diffuse') {
+                data[offset] = 200;
+                data[offset + 1] = 200;
+                data[offset + 2] = 200;
+                data[offset + 3] = 255;
+            } else if (type === 'specular') {
+                data[offset] = 100;
+                data[offset + 1] = 100;
+                data[offset + 2] = 100;
+                data[offset + 3] = 255;
+            } else if (type === 'normal') {
+                data[offset] = 128;
+                data[offset + 1] = 128;
+                data[offset + 2] = 255;
+                data[offset + 3] = 255;
+            }
+        }
+
+        this.gl.bindTexture(this.gl.TEXTURE_2D, texture);
+        this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, size, size, 0, this.gl.RGBA, this.gl.UNSIGNED_BYTE, data);
+        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.REPEAT);
+        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.REPEAT);
+        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR);
+        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.LINEAR);
+
+        this.textures[type] = texture;
     }
 
     resizeCanvas() {
@@ -110,7 +227,6 @@ class App {
     }
 
     updateMatrices() {
-        // Model-view matrix
         this.modelViewMatrix.identity()
             .translate(0, 0, -8.0)
             .rotateY(this.rotationY * Math.PI / 180)
@@ -156,7 +272,8 @@ class App {
         };
 
         this.model.draw(this.shaderProgram, this.projectionMatrix, this.modelViewMatrix,
-                       this.normalMatrix, this.lightPosition, lightingParams);
+                       this.normalMatrix, this.lightPosition, lightingParams,
+                       this.textures, this.normalMapping);
     }
 
     setupEventListeners() {
@@ -215,6 +332,12 @@ class App {
             this.lightAnimation = !this.lightAnimation;
         });
 
+        document.getElementById('toggleNormalMapping').addEventListener('click', () => {
+            this.normalMapping = !this.normalMapping;
+            document.getElementById('toggleNormalMapping').textContent =
+                this.normalMapping ? 'Disable Normal Mapping' : 'Enable Normal Mapping';
+        });
+
         document.getElementById('resetView').addEventListener('click', () => {
             this.resetView();
         });
@@ -234,6 +357,7 @@ class App {
         this.diffuse = 0.7;
         this.specular = 0.5;
         this.shininess = 32.0;
+        this.normalMapping = true;
 
         document.getElementById('rotationX').value = this.rotationX;
         document.getElementById('rotationY').value = this.rotationY;
@@ -254,6 +378,7 @@ class App {
         document.getElementById('diffuseValue').textContent = this.diffuse.toFixed(2);
         document.getElementById('specularValue').textContent = this.specular.toFixed(2);
         document.getElementById('shininessValue').textContent = this.shininess;
+        document.getElementById('toggleNormalMapping').textContent = 'Disable Normal Mapping';
 
         this.model.setSegments(this.uSegments, this.vSegments);
     }

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Astroidal Torus - Filled with Lighting</title>
+    <title>Astroidal Torus</title>
     <style>
         body {
             margin: 0;
@@ -96,15 +96,27 @@
             gap: 10px;
             margin-top: 10px;
         }
+        .texture-status {
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 5px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Astroidal Torus</h1>
+        <h1>Astroidal Torus - Textured</h1>
 
         <div class="canvas-container">
             <canvas id="glcanvas"></canvas>
         </div>
+
+        <div class="texture-status" id="textureStatus">
+            Loading textures...
+        </div>
+
         <div class="controls">
             <div class="control-group">
                 <label for="rotationX">Rotation X</label>
@@ -159,6 +171,7 @@
         <div class="wireframe-toggle">
             <button id="toggleWireframe">Toggle Wireframe</button>
             <button id="toggleLightAnimation">Toggle Light Animation</button>
+            <button id="toggleNormalMapping">Toggle Normal Mapping</button>
             <button id="resetView">Reset View</button>
         </div>
     </div>

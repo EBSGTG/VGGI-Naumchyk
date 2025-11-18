@@ -35,48 +35,22 @@ class App {
             uniform mat4 uProjectionMatrix;
             uniform mat4 uNormalMatrix;
             uniform vec3 uLightPosition;
+            uniform vec4 uAmbientColor;
+            uniform vec4 uDiffuseColor;
+            uniform vec4 uSpecularColor;
+            uniform float uShininess;
             
-            varying vec3 vNormal;
-            varying vec3 vLightDirection;
-            varying vec3 vViewPosition;
+            varying vec4 vColor;
             
             void main() {
                 vec4 viewPosition = uModelViewMatrix * aVertexPosition;
                 gl_Position = uProjectionMatrix * viewPosition;
                 
-                // Transform normal using normal matrix
-                vNormal = mat3(uNormalMatrix) * aVertexNormal;
+                vec3 normal = normalize(mat3(uNormalMatrix) * aVertexNormal);
                 
-                // Calculate light direction in view space
                 vec4 lightViewPosition = uModelViewMatrix * vec4(uLightPosition, 1.0);
-                vLightDirection = lightViewPosition.xyz - viewPosition.xyz;
-                
-                vViewPosition = viewPosition.xyz;
-            }
-        `;
-
-        const fragmentShaderSource = `
-            precision mediump float;
-            
-            uniform vec4 uAmbientColor;
-            uniform vec4 uDiffuseColor;
-            uniform vec4 uSpecularColor;
-            uniform float uShininess;
-            uniform int uUseWireframe;
-            
-            varying vec3 vNormal;
-            varying vec3 vLightDirection;
-            varying vec3 vViewPosition;
-            
-            void main() {
-                if (uUseWireframe == 1) {
-                    gl_FragColor = vec4(0.8, 0.8, 0.8, 1.0);
-                    return;
-                }
-                
-                vec3 normal = normalize(vNormal);
-                vec3 lightDir = normalize(vLightDirection);
-                vec3 viewDir = normalize(-vViewPosition);
+                vec3 lightDir = normalize(lightViewPosition.xyz - viewPosition.xyz);
+                vec3 viewDir = normalize(-viewPosition.xyz);
                 vec3 reflectDir = reflect(-lightDir, normal);
                 
                 vec4 ambient = uAmbientColor;
@@ -87,8 +61,22 @@ class App {
                 float spec = pow(max(dot(viewDir, reflectDir), 0.0), uShininess);
                 vec4 specular = uSpecularColor * spec;
                 
-                vec4 result = ambient + diffuse + specular;
-                gl_FragColor = vec4(result.rgb, 1.0);
+                vColor = ambient + diffuse + specular;
+            }
+        `;
+
+        const fragmentShaderSource = `
+            precision mediump float;
+            
+            varying vec4 vColor;
+            uniform int uUseWireframe;
+            
+            void main() {
+                if (uUseWireframe == 1) {
+                    gl_FragColor = vec4(0.8, 0.8, 0.8, 1.0);
+                } else {
+                    gl_FragColor = vColor;
+                }
             }
         `;
 

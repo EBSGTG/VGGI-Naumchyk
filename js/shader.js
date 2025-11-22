@@ -52,6 +52,8 @@ class Shader {
         this.attributes = {
             vertexPosition: this.gl.getAttribLocation(this.program, 'aVertexPosition'),
             vertexNormal: this.gl.getAttribLocation(this.program, 'aVertexNormal'),
+            vertexTangent: this.gl.getAttribLocation(this.program, 'aVertexTangent'),
+            vertexBitangent: this.gl.getAttribLocation(this.program, 'aVertexBitangent'),
             textureCoord: this.gl.getAttribLocation(this.program, 'aTextureCoord')
         };
     }

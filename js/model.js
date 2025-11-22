@@ -3,10 +3,14 @@ class Model {
         this.gl = gl;
         this.positionBuffer = gl.createBuffer();
         this.normalBuffer = gl.createBuffer();
+        this.tangentBuffer = gl.createBuffer();
+        this.bitangentBuffer = gl.createBuffer();
         this.textureBuffer = gl.createBuffer();
         this.indexBuffer = gl.createBuffer();
         this.vertices = [];
         this.normals = [];
+        this.tangents = [];
+        this.bitangents = [];
         this.textureCoords = [];
         this.indices = [];
         this.uSegments = 30;
@@ -59,9 +63,35 @@ class Model {
         return [0, 0, 1];
     }
 
+    calculateTangentBitangent(vertex1, vertex2, vertex3, uv1, uv2, uv3) {
+        const edge1 = [vertex2[0] - vertex1[0], vertex2[1] - vertex1[1], vertex2[2] - vertex1[2]];
+        const edge2 = [vertex3[0] - vertex1[0], vertex3[1] - vertex1[1], vertex3[2] - vertex1[2]];
+
+        const deltaUV1 = [uv2[0] - uv1[0], uv2[1] - uv1[1]];
+        const deltaUV2 = [uv3[0] - uv1[0], uv3[1] - uv1[1]];
+
+        const f = 1.0 / (deltaUV1[0] * deltaUV2[1] - deltaUV2[0] * deltaUV1[1]);
+
+        const tangent = [
+            f * (deltaUV2[1] * edge1[0] - deltaUV1[1] * edge2[0]),
+            f * (deltaUV2[1] * edge1[1] - deltaUV1[1] * edge2[1]),
+            f * (deltaUV2[1] * edge1[2] - deltaUV1[1] * edge2[2])
+        ];
+
+        const bitangent = [
+            f * (-deltaUV2[0] * edge1[0] + deltaUV1[0] * edge2[0]),
+            f * (-deltaUV2[0] * edge1[1] + deltaUV1[0] * edge2[1]),
+            f * (-deltaUV2[0] * edge1[2] + deltaUV1[0] * edge2[2])
+        ];
+
+        return { tangent, bitangent };
+    }
+
     generateSurface() {
         this.vertices = [];
         this.normals = [];
+        this.tangents = [];
+        this.bitangents = [];
         this.textureCoords = [];
         this.indices = [];
 
@@ -69,8 +99,13 @@ class Model {
         const vStep = (2 * Math.PI) / this.vSegments;
 
         const vertexNormals = new Array((this.uSegments + 1) * (this.vSegments + 1));
+        const vertexTangents = new Array((this.uSegments + 1) * (this.vSegments + 1));
+        const vertexBitangents = new Array((this.uSegments + 1) * (this.vSegments + 1));
+
         for (let i = 0; i < vertexNormals.length; i++) {
             vertexNormals[i] = [0, 0, 0];
+            vertexTangents[i] = [0, 0, 0];
+            vertexBitangents[i] = [0, 0, 0];
         }
 
         for (let i = 0; i <= this.uSegments; i++) {
@@ -79,7 +114,6 @@ class Model {
                 const v = j * vStep;
                 const vertex = this.astroidalTorus(u, v);
                 this.vertices.push(...vertex);
-
                 this.textureCoords.push(j / this.vSegments, i / this.uSegments);
 
                 const derivs = this.calculateDerivatives(u, v);
@@ -97,11 +131,64 @@ class Model {
 
                 this.indices.push(a, b, c);
                 this.indices.push(b, d, c);
+
+                const vertices = [
+                    [this.vertices[a*3], this.vertices[a*3+1], this.vertices[a*3+2]],
+                    [this.vertices[b*3], this.vertices[b*3+1], this.vertices[b*3+2]],
+                    [this.vertices[c*3], this.vertices[c*3+1], this.vertices[c*3+2]]
+                ];
+
+                const uvs = [
+                    [this.textureCoords[a*2], this.textureCoords[a*2+1]],
+                    [this.textureCoords[b*2], this.textureCoords[b*2+1]],
+                    [this.textureCoords[c*2], this.textureCoords[c*2+1]]
+                ];
+
+                const tbn1 = this.calculateTangentBitangent(vertices[0], vertices[1], vertices[2], uvs[0], uvs[1], uvs[2]);
+
+                for (let k = 0; k < 3; k++) {
+                    const index = [a, b, c][k];
+                    vertexTangents[index][0] += tbn1.tangent[0];
+                    vertexTangents[index][1] += tbn1.tangent[1];
+                    vertexTangents[index][2] += tbn1.tangent[2];
+
+                    vertexBitangents[index][0] += tbn1.bitangent[0];
+                    vertexBitangents[index][1] += tbn1.bitangent[1];
+                    vertexBitangents[index][2] += tbn1.bitangent[2];
+                }
+
+                const vertices2 = [
+                    [this.vertices[b*3], this.vertices[b*3+1], this.vertices[b*3+2]],
+                    [this.vertices[d*3], this.vertices[d*3+1], this.vertices[d*3+2]],
+                    [this.vertices[c*3], this.vertices[c*3+1], this.vertices[c*3+2]]
+                ];
+
+                const uvs2 = [
+                    [this.textureCoords[b*2], this.textureCoords[b*2+1]],
+                    [this.textureCoords[d*2], this.textureCoords[d*2+1]],
+                    [this.textureCoords[c*2], this.textureCoords[c*2+1]]
+                ];
+
+                const tbn2 = this.calculateTangentBitangent(vertices2[0], vertices2[1], vertices2[2], uvs2[0], uvs2[1], uvs2[2]);
+
+                for (let k = 0; k < 3; k++) {
+                    const index = [b, d, c][k];
+                    vertexTangents[index][0] += tbn2.tangent[0];
+                    vertexTangents[index][1] += tbn2.tangent[1];
+                    vertexTangents[index][2] += tbn2.tangent[2];
+
+                    vertexBitangents[index][0] += tbn2.bitangent[0];
+                    vertexBitangents[index][1] += tbn2.bitangent[1];
+                    vertexBitangents[index][2] += tbn2.bitangent[2];
+                }
             }
         }
 
         for (let i = 0; i <= this.uSegments; i++) {
             for (let j = 0; j <= this.vSegments; j++) {
+                const index = i * (this.vSegments + 1) + j;
+
+                // Average normal
                 const normal = [0, 0, 0];
                 let count = 0;
 
@@ -119,11 +206,28 @@ class Model {
                     }
                 }
 
-                const length = Math.sqrt(normal[0]*normal[0] + normal[1]*normal[1] + normal[2]*normal[2]);
-                if (length > 0) {
-                    this.normals.push(normal[0]/length, normal[1]/length, normal[2]/length);
+                const normalLength = Math.sqrt(normal[0]*normal[0] + normal[1]*normal[1] + normal[2]*normal[2]);
+                if (normalLength > 0) {
+                    this.normals.push(normal[0]/normalLength, normal[1]/normalLength, normal[2]/normalLength);
                 } else {
                     this.normals.push(0, 0, 1);
+                }
+
+                const tangent = vertexTangents[index];
+                const bitangent = vertexBitangents[index];
+
+                const tangentLength = Math.sqrt(tangent[0]*tangent[0] + tangent[1]*tangent[1] + tangent[2]*tangent[2]);
+                if (tangentLength > 0) {
+                    this.tangents.push(tangent[0]/tangentLength, tangent[1]/tangentLength, tangent[2]/tangentLength);
+                } else {
+                    this.tangents.push(1, 0, 0);
+                }
+
+                const bitangentLength = Math.sqrt(bitangent[0]*bitangent[0] + bitangent[1]*bitangent[1] + bitangent[2]*bitangent[2]);
+                if (bitangentLength > 0) {
+                    this.bitangents.push(bitangent[0]/bitangentLength, bitangent[1]/bitangentLength, bitangent[2]/bitangentLength);
+                } else {
+                    this.bitangents.push(0, 1, 0);
                 }
             }
         }
@@ -139,6 +243,12 @@ class Model {
 
         gl.bindBuffer(gl.ARRAY_BUFFER, this.normalBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.normals), gl.STATIC_DRAW);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.tangentBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.tangents), gl.STATIC_DRAW);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.bitangentBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.bitangents), gl.STATIC_DRAW);
 
         gl.bindBuffer(gl.ARRAY_BUFFER, this.textureBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.textureCoords), gl.STATIC_DRAW);
@@ -192,7 +302,6 @@ class Model {
             shaderProgram.setUniform1i(shaderProgram.uniforms.normalTexture, 2);
         }
 
-        // Set up vertex attributes
         gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
         gl.vertexAttribPointer(shaderProgram.attributes.vertexPosition, 3, gl.FLOAT, false, 0, 0);
         gl.enableVertexAttribArray(shaderProgram.attributes.vertexPosition);
@@ -200,6 +309,14 @@ class Model {
         gl.bindBuffer(gl.ARRAY_BUFFER, this.normalBuffer);
         gl.vertexAttribPointer(shaderProgram.attributes.vertexNormal, 3, gl.FLOAT, false, 0, 0);
         gl.enableVertexAttribArray(shaderProgram.attributes.vertexNormal);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.tangentBuffer);
+        gl.vertexAttribPointer(shaderProgram.attributes.vertexTangent, 3, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(shaderProgram.attributes.vertexTangent);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.bitangentBuffer);
+        gl.vertexAttribPointer(shaderProgram.attributes.vertexBitangent, 3, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(shaderProgram.attributes.vertexBitangent);
 
         gl.bindBuffer(gl.ARRAY_BUFFER, this.textureBuffer);
         gl.vertexAttribPointer(shaderProgram.attributes.textureCoord, 2, gl.FLOAT, false, 0, 0);

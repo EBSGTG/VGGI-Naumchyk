@@ -38,6 +38,8 @@ class App {
         const vertexShaderSource = `
             attribute vec4 aVertexPosition;
             attribute vec3 aVertexNormal;
+            attribute vec3 aVertexTangent;
+            attribute vec3 aVertexBitangent;
             attribute vec2 aTextureCoord;
             
             uniform mat4 uModelViewMatrix;
@@ -49,6 +51,7 @@ class App {
             varying vec3 vLightDirection;
             varying vec3 vViewPosition;
             varying vec2 vTextureCoord;
+            varying mat3 vTBN;
             
             void main() {
                 vec4 viewPosition = uModelViewMatrix * aVertexPosition;
@@ -56,6 +59,15 @@ class App {
                 
                 // Transform normal using normal matrix
                 vNormal = mat3(uNormalMatrix) * aVertexNormal;
+                
+                vec3 T = normalize(mat3(uNormalMatrix) * aVertexTangent);
+                vec3 B = normalize(mat3(uNormalMatrix) * aVertexBitangent);
+                vec3 N = normalize(vNormal);
+                
+                T = normalize(T - dot(T, N) * N);
+                B = normalize(cross(N, T));
+                
+                vTBN = mat3(T, B, N);
                 
                 // Calculate light direction in view space
                 vec4 lightViewPosition = uModelViewMatrix * vec4(uLightPosition, 1.0);
@@ -84,6 +96,7 @@ class App {
             varying vec3 vLightDirection;
             varying vec3 vViewPosition;
             varying vec2 vTextureCoord;
+            varying mat3 vTBN;
             
             void main() {
                 if (uUseWireframe == 1) {
@@ -96,7 +109,8 @@ class App {
                 if (uUseNormalMapping == 1) {
                     // Get normal from normal map and transform from [0,1] to [-1,1]
                     vec3 normalMap = texture2D(uNormalTexture, vTextureCoord).rgb;
-                    normal = normalize(normalMap * 2.0 - 1.0);
+                    vec3 tangentNormal = normalize(normalMap * 2.0 - 1.0);                    
+                    normal = normalize(vTBN * tangentNormal);
                 } else {
                     normal = normalize(vNormal);
                 }

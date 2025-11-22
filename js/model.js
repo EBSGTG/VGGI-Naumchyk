@@ -29,53 +29,17 @@ class Model {
         return [x, y, z];
     }
 
-    calculateDerivatives(u, v) {
-        const epsilon = 0.001;
+    calculateFacetNormal(v1, v2, v3) {
+        const u = [v2[0]-v1[0], v2[1]-v1[1], v2[2]-v1[2]];
+        const v = [v3[0]-v1[0], v3[1]-v1[1], v3[2]-v1[2]];
 
-        const p = this.astroidalTorus(u, v);
-
-        const pu = this.astroidalTorus(u + epsilon, v);
-        const du = [pu[0] - p[0], pu[1] - p[1], pu[2] - p[2]];
-
-        const pv = this.astroidalTorus(u, v + epsilon);
-        const dv = [pv[0] - p[0], pv[1] - p[1], pv[2] - p[2]];
-
-        return { du, dv };
-    }
-
-    calculateFacetNormal(du, dv) {
         const normal = [
-            du[1] * dv[2] - du[2] * dv[1],
-            du[2] * dv[0] - du[0] * dv[2],
-            du[0] * dv[1] - du[1] * dv[0]
+            u[1] * v[2] - u[2] * v[1],
+            u[2] * v[0] - u[0] * v[2],
+            u[0] * v[1] - u[1] * v[0]
         ];
 
-        const length = Math.sqrt(normal[0]*normal[0] + normal[1]*normal[1] + normal[2]*normal[2]);
-        if (length > 0) {
-            return [normal[0]/length, normal[1]/length, normal[2]/length];
-        }
-        return [0, 0, 1];
-    }
-
-    calculateTriangleArea(v1, v2, v3) {
-        const a = Math.sqrt(
-            Math.pow(v2[0]-v1[0], 2) +
-            Math.pow(v2[1]-v1[1], 2) +
-            Math.pow(v2[2]-v1[2], 2)
-        );
-        const b = Math.sqrt(
-            Math.pow(v3[0]-v2[0], 2) +
-            Math.pow(v3[1]-v2[1], 2) +
-            Math.pow(v3[2]-v2[2], 2)
-        );
-        const c = Math.sqrt(
-            Math.pow(v1[0]-v3[0], 2) +
-            Math.pow(v1[1]-v3[1], 2) +
-            Math.pow(v1[2]-v3[2], 2)
-        );
-
-        const s = (a + b + c) / 2;
-        return Math.sqrt(s * (s - a) * (s - b) * (s - c));
+        return normal;
     }
 
     generateSurface() {
@@ -87,11 +51,9 @@ class Model {
         const vStep = (2 * Math.PI) / this.vSegments;
 
         const vertexNormals = new Array((this.uSegments + 1) * (this.vSegments + 1));
-        const vertexAreas = new Array((this.uSegments + 1) * (this.vSegments + 1));
 
         for (let i = 0; i < vertexNormals.length; i++) {
             vertexNormals[i] = [0, 0, 0];
-            vertexAreas[i] = 0;
         }
 
         for (let i = 0; i <= this.uSegments; i++) {
@@ -115,27 +77,15 @@ class Model {
                 const vC = [this.vertices[c*3], this.vertices[c*3+1], this.vertices[c*3+2]];
                 const vD = [this.vertices[d*3], this.vertices[d*3+1], this.vertices[d*3+2]];
 
-                const ab1 = [vB[0]-vA[0], vB[1]-vA[1], vB[2]-vA[2]];
-                const ac1 = [vC[0]-vA[0], vC[1]-vA[1], vC[2]-vA[2]];
-                const normal1 = this.calculateFacetNormal(ab1, ac1);
-                const area1 = this.calculateTriangleArea(vA, vB, vC);
-
-                const bd2 = [vD[0]-vB[0], vD[1]-vB[1], vD[2]-vB[2]];
-                const bc2 = [vC[0]-vB[0], vC[1]-vB[1], vC[2]-vB[2]];
-                const normal2 = this.calculateFacetNormal(bd2, bc2);
-                const area2 = this.calculateTriangleArea(vB, vD, vC);
+                const normal1 = this.calculateFacetNormal(vA, vB, vC);
+                const normal2 = this.calculateFacetNormal(vB, vD, vC);
 
                 for (let k = 0; k < 3; k++) {
-                    vertexNormals[a][k] += normal1[k] * area1;
-                    vertexNormals[b][k] += normal1[k] * area1 + normal2[k] * area2;
-                    vertexNormals[c][k] += normal1[k] * area1 + normal2[k] * area2;
-                    vertexNormals[d][k] += normal2[k] * area2;
+                    vertexNormals[a][k] += normal1[k];
+                    vertexNormals[b][k] += normal1[k] + normal2[k];
+                    vertexNormals[c][k] += normal1[k] + normal2[k];
+                    vertexNormals[d][k] += normal2[k];
                 }
-
-                vertexAreas[a] += area1;
-                vertexAreas[b] += area1 + area2;
-                vertexAreas[c] += area1 + area2;
-                vertexAreas[d] += area2;
 
                 this.indices.push(a, b, c);
                 this.indices.push(b, d, c);

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Astroidal Torus</title>
+    <title>Astroidal Torus - Textured with Transformations</title>
     <style>
         body {
             margin: 0;
@@ -74,6 +74,8 @@
             display: flex;
             gap: 10px;
             margin-top: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
         }
         button {
             background: #4a90e2;
@@ -95,6 +97,15 @@
             display: flex;
             gap: 10px;
             margin-top: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .texture-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
         }
         .texture-status {
             margin-top: 10px;
@@ -103,11 +114,43 @@
             border-radius: 5px;
             text-align: center;
         }
+        .keyboard-info {
+            margin-top: 15px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 5px;
+            text-align: center;
+            width: 100%;
+        }
+        .keyboard-info kbd {
+            background: #555;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        .point-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .point-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            background-color: red;
+            border: 2px solid white;
+            border-radius: 50%;
+            margin-right: 5px;
+            vertical-align: middle;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Astroidal Torus - Textured</h1>
+        <h1>Astroidal Torus - Textured with Transformations</h1>
+        <p class="subtitle">Use WASD keys to move texture center point</p>
 
         <div class="canvas-container">
             <canvas id="glcanvas"></canvas>
@@ -115,6 +158,11 @@
 
         <div class="texture-status" id="textureStatus">
             Loading textures...
+        </div>
+
+        <div class="keyboard-info">
+            <p><span class="point-indicator"></span> Texture Center: <span id="textureCenterValue">U: 0.50 (3.14 rad), V: 0.50 (3.14 rad)</span></p>
+            <p>Keyboard Controls: <kbd>W</kbd>/<kbd>S</kbd> - Move center along V • <kbd>A</kbd>/<kbd>D</kbd> - Move center along U</p>
         </div>
 
         <div class="controls">
@@ -145,6 +193,29 @@
             </div>
         </div>
 
+        <div class="texture-controls">
+            <div class="control-group">
+                <label for="textureScaleU">Texture Scale U</label>
+                <input type="range" id="textureScaleU" min="0.1" max="3.0" value="1.0" step="0.1">
+                <div class="value-display" id="textureScaleUValue">1.0</div>
+            </div>
+            <div class="control-group">
+                <label for="textureScaleV">Texture Scale V</label>
+                <input type="range" id="textureScaleV" min="0.1" max="3.0" value="1.0" step="0.1">
+                <div class="value-display" id="textureScaleVValue">1.0</div>
+            </div>
+            <div class="control-group">
+                <label for="textureRotation">Texture Rotation</label>
+                <input type="range" id="textureRotation" min="0" max="360" value="0">
+                <div class="value-display" id="textureRotationValue">0°</div>
+            </div>
+            <div class="control-group">
+                <label for="pointSize">Point Size</label>
+                <input type="range" id="pointSize" min="5" max="30" value="10">
+                <div class="value-display" id="pointSizeValue">10</div>
+            </div>
+        </div>
+
         <div class="shading-controls">
             <div class="control-group">
                 <label for="ambient">Ambient</label>
@@ -172,7 +243,9 @@
             <button id="toggleWireframe">Toggle Wireframe</button>
             <button id="toggleLightAnimation">Toggle Light Animation</button>
             <button id="toggleNormalMapping">Toggle Normal Mapping</button>
-            <button id="resetView">Reset View</button>
+            <button id="togglePoint">Hide Point</button>
+            <button id="resetTexture">Reset Texture</button>
+            <button id="resetView">Reset All</button>
         </div>
     </div>
 

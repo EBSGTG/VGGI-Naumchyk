@@ -267,7 +267,7 @@ class Model {
         this.wireframeMode = !this.wireframeMode;
     }
 
-    draw(shaderProgram, projectionMatrix, modelViewMatrix, normalMatrix, lightPosition, lightingParams, textures, normalMapping) {
+    draw(shaderProgram, projectionMatrix, modelViewMatrix, normalMatrix, lightPosition, lightingParams, textures, normalMapping, textureScaleU, textureScaleV, textureRotation, textureCenter) {
         const gl = this.gl;
 
         shaderProgram.use();
@@ -283,6 +283,11 @@ class Model {
         shaderProgram.setUniform1f(shaderProgram.uniforms.shininess, lightingParams.shininess);
         shaderProgram.setUniform1i(shaderProgram.uniforms.useWireframe, this.wireframeMode ? 1 : 0);
         shaderProgram.setUniform1i(shaderProgram.uniforms.useNormalMapping, normalMapping ? 1 : 0);
+
+        shaderProgram.setUniform1f(shaderProgram.uniforms.textureScaleU, textureScaleU);
+        shaderProgram.setUniform1f(shaderProgram.uniforms.textureScaleV, textureScaleV);
+        shaderProgram.setUniform1f(shaderProgram.uniforms.textureRotation, textureRotation);
+        shaderProgram.setUniform2f(shaderProgram.uniforms.textureCenter, textureCenter[0], textureCenter[1]);
 
         if (textures.diffuse) {
             gl.activeTexture(gl.TEXTURE0);

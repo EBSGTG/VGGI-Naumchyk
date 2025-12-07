@@ -18,6 +18,16 @@ class App {
         this.lightAngle = 0;
         this.normalMapping = true;
 
+        this.textureScaleU = 1.0;
+        this.textureScaleV = 1.0;
+        this.textureRotation = 0;
+        this.textureCenterU = 0.5;
+        this.textureCenterV = 0.5;
+
+        this.showPoint = true;
+        this.pointSize = 10.0;
+        this.pointColor = [1.0, 0.0, 0.0];
+
         this.projectionMatrix = new M4();
         this.modelViewMatrix = new M4();
         this.normalMatrix = new M4();
@@ -29,8 +39,10 @@ class App {
         };
 
         this.initShaders();
+        this.initPointShader();
         this.loadTextures();
         this.setupEventListeners();
+        this.setupKeyboardControls();
         this.resizeCanvas();
     }
 
@@ -46,6 +58,11 @@ class App {
             uniform mat4 uProjectionMatrix;
             uniform mat4 uNormalMatrix;
             uniform vec3 uLightPosition;
+            
+            uniform float uTextureScaleU;
+            uniform float uTextureScaleV;
+            uniform float uTextureRotation;
+            uniform vec2 uTextureCenter;
             
             varying vec3 vNormal;
             varying vec3 vLightDirection;
@@ -69,12 +86,27 @@ class App {
                 
                 vTBN = mat3(T, B, N);
                 
-                // Calculate light direction in view space
                 vec4 lightViewPosition = uModelViewMatrix * vec4(uLightPosition, 1.0);
                 vLightDirection = lightViewPosition.xyz - viewPosition.xyz;
                 
                 vViewPosition = viewPosition.xyz;
-                vTextureCoord = aTextureCoord;
+                
+                vec2 texCoord = aTextureCoord;
+                
+                texCoord -= uTextureCenter;
+                
+                texCoord.x /= uTextureScaleU;
+                texCoord.y /= uTextureScaleV;
+                
+                float cosRot = cos(uTextureRotation);
+                float sinRot = sin(uTextureRotation);
+                texCoord = vec2(
+                    texCoord.x * cosRot - texCoord.y * sinRot,
+                    texCoord.x * sinRot + texCoord.y * cosRot
+                );
+                
+                texCoord += uTextureCenter;
+                vTextureCoord = texCoord;
             }
         `;
 
@@ -137,6 +169,91 @@ class App {
         `;
 
         this.shaderProgram = new Shader(this.gl, vertexShaderSource, fragmentShaderSource);
+    }
+
+    initPointShader() {
+        const pointVertexShaderSource = `
+            attribute vec4 aVertexPosition;
+            uniform mat4 uModelViewMatrix;
+            uniform mat4 uProjectionMatrix;
+            uniform float uPointSize;
+            
+            void main() {
+                vec4 viewPosition = uModelViewMatrix * aVertexPosition;
+                gl_Position = uProjectionMatrix * viewPosition;
+                gl_PointSize = uPointSize;
+            }
+        `;
+
+        const pointFragmentShaderSource = `
+            precision mediump float;
+            uniform vec3 uPointColor;
+            
+            void main() {
+                vec2 coord = gl_PointCoord - vec2(0.5);
+                float dist = length(coord);
+                
+                if (dist > 0.5) {
+                    discard;
+                }
+                
+                float border = smoothstep(0.4, 0.5, dist);
+                vec3 color = mix(vec3(1.0), uPointColor, border);
+                gl_FragColor = vec4(color, 1.0);
+            }
+        `;
+
+        this.pointShaderProgram = new Shader(this.gl, pointVertexShaderSource, pointFragmentShaderSource);
+        this.pointBuffer = this.gl.createBuffer();
+    }
+
+    updatePointBuffer() {
+        // Calculate the 3D position from texture coordinates
+        const u = this.textureCenterU * 2 * Math.PI;
+        const v = this.textureCenterV * 2 * Math.PI;
+
+        const R = 1.5;
+        const a = 0.5;
+        const cosU = Math.cos(u);
+        const sinU = Math.sin(u);
+        const cosV = Math.cos(v);
+        const sinV = Math.sin(v);
+
+        const x = (R + a * cosU) * cosV;
+        const y = (R + a * cosU) * sinV;
+        const z = a * sinU;
+
+        const pointPosition = [x, y, z];
+
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.pointBuffer);
+        this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(pointPosition), this.gl.STATIC_DRAW);
+    }
+
+    drawPoint() {
+        if (!this.showPoint) return;
+
+        this.pointShaderProgram.use();
+
+        this.updatePointBuffer();
+
+        this.pointShaderProgram.setUniformMatrix4fv(this.pointShaderProgram.uniforms.projectionMatrix, this.projectionMatrix);
+        this.pointShaderProgram.setUniformMatrix4fv(this.pointShaderProgram.uniforms.modelViewMatrix, this.modelViewMatrix);
+        this.pointShaderProgram.setUniform1f(this.pointShaderProgram.uniforms.pointSize, this.pointSize);
+        this.pointShaderProgram.setUniform3f(this.pointShaderProgram.uniforms.pointColor,
+            this.pointColor[0], this.pointColor[1], this.pointColor[2]);
+
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.pointBuffer);
+        this.gl.vertexAttribPointer(this.pointShaderProgram.attributes.vertexPosition, 3, this.gl.FLOAT, false, 0, 0);
+        this.gl.enableVertexAttribArray(this.pointShaderProgram.attributes.vertexPosition);
+
+        this.gl.enable(this.gl.BLEND);
+        this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
+        this.gl.depthFunc(this.gl.LEQUAL);
+
+        this.gl.drawArrays(this.gl.POINTS, 0, 1);
+
+        this.gl.disable(this.gl.BLEND);
+        this.gl.depthFunc(this.gl.LESS);
     }
 
     loadTextures() {
@@ -287,7 +404,10 @@ class App {
 
         this.model.draw(this.shaderProgram, this.projectionMatrix, this.modelViewMatrix,
                        this.normalMatrix, this.lightPosition, lightingParams,
-                       this.textures, this.normalMapping);
+                       this.textures, this.normalMapping, this.textureScaleU, this.textureScaleV,
+                       this.textureRotation, [this.textureCenterU, this.textureCenterV]);
+
+        this.drawPoint();
     }
 
     setupEventListeners() {
@@ -356,9 +476,67 @@ class App {
             this.resetView();
         });
 
+        document.getElementById('textureScaleU').addEventListener('input', (e) => {
+            this.textureScaleU = parseFloat(e.target.value);
+            document.getElementById('textureScaleUValue').textContent = this.textureScaleU.toFixed(1);
+        });
+
+        document.getElementById('textureScaleV').addEventListener('input', (e) => {
+            this.textureScaleV = parseFloat(e.target.value);
+            document.getElementById('textureScaleVValue').textContent = this.textureScaleV.toFixed(1);
+        });
+
+        document.getElementById('textureRotation').addEventListener('input', (e) => {
+            this.textureRotation = parseFloat(e.target.value) * Math.PI / 180;
+            document.getElementById('textureRotationValue').textContent = parseFloat(e.target.value).toFixed(0) + '°';
+        });
+
+        document.getElementById('pointSize').addEventListener('input', (e) => {
+            this.pointSize = parseFloat(e.target.value);
+            document.getElementById('pointSizeValue').textContent = this.pointSize.toFixed(0);
+        });
+
+        document.getElementById('togglePoint').addEventListener('click', () => {
+            this.showPoint = !this.showPoint;
+            document.getElementById('togglePoint').textContent =
+                this.showPoint ? 'Hide Point' : 'Show Point';
+        });
+
+        document.getElementById('resetTexture').addEventListener('click', () => {
+            this.resetTexture();
+        });
+
         window.addEventListener('resize', () => {
             this.resizeCanvas();
         });
+    }
+
+    setupKeyboardControls() {
+        document.addEventListener('keydown', (e) => {
+            const step = 0.02;
+            switch(e.key.toLowerCase()) {
+                case 'w':
+                    this.textureCenterV = Math.min(1.0, this.textureCenterV + step);
+                    break;
+                case 's':
+                    this.textureCenterV = Math.max(0.0, this.textureCenterV - step);
+                    break;
+                case 'a':
+                    this.textureCenterU = Math.max(0.0, this.textureCenterU - step);
+                    break;
+                case 'd':
+                    this.textureCenterU = Math.min(1.0, this.textureCenterU + step);
+                    break;
+            }
+            this.updatePointDisplay();
+        });
+    }
+
+    updatePointDisplay() {
+        const uCoord = (this.textureCenterU * 2 * Math.PI).toFixed(2);
+        const vCoord = (this.textureCenterV * 2 * Math.PI).toFixed(2);
+        document.getElementById('textureCenterValue').textContent =
+            `U: ${this.textureCenterU.toFixed(2)} (${uCoord} rad), V: ${this.textureCenterV.toFixed(2)} (${vCoord} rad)`;
     }
 
     resetView() {
@@ -372,6 +550,14 @@ class App {
         this.specular = 0.5;
         this.shininess = 32.0;
         this.normalMapping = true;
+        this.showPoint = true;
+        this.pointSize = 10.0;
+
+        this.textureScaleU = 1.0;
+        this.textureScaleV = 1.0;
+        this.textureRotation = 0;
+        this.textureCenterU = 0.5;
+        this.textureCenterV = 0.5;
 
         document.getElementById('rotationX').value = this.rotationX;
         document.getElementById('rotationY').value = this.rotationY;
@@ -382,6 +568,11 @@ class App {
         document.getElementById('diffuse').value = this.diffuse;
         document.getElementById('specular').value = this.specular;
         document.getElementById('shininess').value = this.shininess;
+        document.getElementById('pointSize').value = this.pointSize;
+
+        document.getElementById('textureScaleU').value = this.textureScaleU;
+        document.getElementById('textureScaleV').value = this.textureScaleV;
+        document.getElementById('textureRotation').value = 0;
 
         document.getElementById('rotationXValue').textContent = this.rotationX + '°';
         document.getElementById('rotationYValue').textContent = this.rotationY + '°';
@@ -393,8 +584,32 @@ class App {
         document.getElementById('specularValue').textContent = this.specular.toFixed(2);
         document.getElementById('shininessValue').textContent = this.shininess;
         document.getElementById('toggleNormalMapping').textContent = 'Disable Normal Mapping';
+        document.getElementById('togglePoint').textContent = 'Hide Point';
+        document.getElementById('textureScaleUValue').textContent = this.textureScaleU.toFixed(1);
+        document.getElementById('textureScaleVValue').textContent = this.textureScaleV.toFixed(1);
+        document.getElementById('textureRotationValue').textContent = '0°';
+        document.getElementById('pointSizeValue').textContent = this.pointSize.toFixed(0);
 
+        this.updatePointDisplay();
         this.model.setSegments(this.uSegments, this.vSegments);
+    }
+
+    resetTexture() {
+        this.textureScaleU = 1.0;
+        this.textureScaleV = 1.0;
+        this.textureRotation = 0;
+        this.textureCenterU = 0.5;
+        this.textureCenterV = 0.5;
+
+        document.getElementById('textureScaleU').value = this.textureScaleU;
+        document.getElementById('textureScaleV').value = this.textureScaleV;
+        document.getElementById('textureRotation').value = 0;
+
+        document.getElementById('textureScaleUValue').textContent = this.textureScaleU.toFixed(1);
+        document.getElementById('textureScaleVValue').textContent = this.textureScaleV.toFixed(1);
+        document.getElementById('textureRotationValue').textContent = '0°';
+
+        this.updatePointDisplay();
     }
 
     animate() {

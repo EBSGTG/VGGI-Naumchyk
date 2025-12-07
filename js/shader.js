@@ -33,29 +33,35 @@ class Shader {
     }
 
     getUniformLocations() {
-        this.uniforms = {
-            projectionMatrix: this.gl.getUniformLocation(this.program, 'uProjectionMatrix'),
-            modelViewMatrix: this.gl.getUniformLocation(this.program, 'uModelViewMatrix'),
-            normalMatrix: this.gl.getUniformLocation(this.program, 'uNormalMatrix'),
-            lightPosition: this.gl.getUniformLocation(this.program, 'uLightPosition'),
-            ambientColor: this.gl.getUniformLocation(this.program, 'uAmbientColor'),
-            diffuseColor: this.gl.getUniformLocation(this.program, 'uDiffuseColor'),
-            specularColor: this.gl.getUniformLocation(this.program, 'uSpecularColor'),
-            shininess: this.gl.getUniformLocation(this.program, 'uShininess'),
-            useWireframe: this.gl.getUniformLocation(this.program, 'uUseWireframe'),
-            useNormalMapping: this.gl.getUniformLocation(this.program, 'uUseNormalMapping'),
-            diffuseTexture: this.gl.getUniformLocation(this.program, 'uDiffuseTexture'),
-            specularTexture: this.gl.getUniformLocation(this.program, 'uSpecularTexture'),
-            normalTexture: this.gl.getUniformLocation(this.program, 'uNormalTexture')
-        };
+        this.uniforms = {};
+        this.attributes = {};
 
-        this.attributes = {
-            vertexPosition: this.gl.getAttribLocation(this.program, 'aVertexPosition'),
-            vertexNormal: this.gl.getAttribLocation(this.program, 'aVertexNormal'),
-            vertexTangent: this.gl.getAttribLocation(this.program, 'aVertexTangent'),
-            vertexBitangent: this.gl.getAttribLocation(this.program, 'aVertexBitangent'),
-            textureCoord: this.gl.getAttribLocation(this.program, 'aTextureCoord')
-        };
+        const uniformNames = [
+            'uProjectionMatrix', 'uModelViewMatrix', 'uNormalMatrix', 'uLightPosition',
+            'uAmbientColor', 'uDiffuseColor', 'uSpecularColor', 'uShininess',
+            'uUseWireframe', 'uUseNormalMapping', 'uDiffuseTexture', 'uSpecularTexture',
+            'uNormalTexture', 'uTextureScaleU', 'uTextureScaleV', 'uTextureRotation',
+            'uTextureCenter', 'uPointSize', 'uPointColor'
+        ];
+
+        const attributeNames = [
+            'aVertexPosition', 'aVertexNormal', 'aVertexTangent', 'aVertexBitangent',
+            'aTextureCoord'
+        ];
+
+        uniformNames.forEach(name => {
+            const location = this.gl.getUniformLocation(this.program, name);
+            if (location !== null) {
+                this.uniforms[name.replace('u', '').charAt(0).toLowerCase() + name.slice(2)] = location;
+            }
+        });
+
+        attributeNames.forEach(name => {
+            const location = this.gl.getAttribLocation(this.program, name);
+            if (location !== -1) {
+                this.attributes[name.replace('a', '').charAt(0).toLowerCase() + name.slice(2)] = location;
+            }
+        });
     }
 
     use() {
@@ -80,5 +86,9 @@ class Shader {
 
     setUniform1i(location, value) {
         this.gl.uniform1i(location, value);
+    }
+
+    setUniform2f(location, x, y) {
+        this.gl.uniform2f(location, x, y);
     }
 }
